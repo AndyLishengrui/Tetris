@@ -3,38 +3,17 @@ import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
 import java.io.*;
-// 在 import 区域添加背景音效相关类
-// import javax.sound.sampled.*;
 
 public class Tetris {
-    // 新增：播放背景音效的方法（bgm.wav 应放在应用目录下）
-    /*
-    private static void playBackgroundMusic() {
-        try {
-            AudioInputStream audioIn = AudioSystem.getAudioInputStream(new File("bgm.wav"));
-            Clip clip = AudioSystem.getClip();
-            clip.open(audioIn);
-            clip.loop(Clip.LOOP_CONTINUOUSLY);
-        } catch(Exception e) {
-            e.printStackTrace();
-        }
-    }
-    */
-
     public static void main(String[] args) {
-        //System.out.println("程序开始运行");
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
                 createAndShowGUI();
-                // 调用背景音效播放方法
-                // playBackgroundMusic();
             }
         });
     }
 
-    // 修改 createAndShowGUI 方法，使用 frame.pack() 自动设置窗口尺寸
     private static void createAndShowGUI() {
-       // System.out.println("开始创建GUI");
         final JFrame frame = new JFrame("俄罗斯方块");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setResizable(false);
@@ -48,17 +27,121 @@ public class Tetris {
         mainPanel.add(gamePanel, "Game");
         mainPanel.add(highScorePanel, "HighScore");
 
-        // 设置菜单栏
         JMenuBar menuBar = new MenuBar(frame, gamePanel, mainPanel);
         frame.setJMenuBar(menuBar);
 
         frame.add(mainPanel);
-      //  System.out.println("程序显示界面");
-        // 使用 pack() 而不再使用固定尺寸设置窗口大小
         frame.pack();
         frame.setLocationRelativeTo(null);
-       // System.out.println("GUI创建完成，即将显示");
         frame.setVisible(true);
+    }
+}
+
+/**
+ * 游戏配置常量
+ */
+class GameConfig {
+    // 游戏区域配置
+    public static final int BOARD_WIDTH = 10;
+    public static final int BOARD_HEIGHT = 20;
+    public static final int CELL_SIZE = 30;
+    public static final int SIDEBAR_WIDTH = 120;
+    
+    // 游戏机制配置
+    public static final int BASE_SPEED = 800; // 基础下落速度（毫秒）
+    public static final double SPEED_FACTOR = 1.2; // 速度增加的指数系数 - 降低，使难度增加更平缓
+    public static final double SPEED_MULTIPLIER = 40.0; // 速度增加的乘数 - 降低
+    public static final boolean USE_COUNTDOWN_TIMER = false; // 修改：禁用倒计时，改为无限制模式
+    public static final int BASE_COUNTDOWN = 120; // 修改：每关基础倒计时增加到120秒
+    public static final int COUNTDOWN_DECREASE = 0; // 修改：关卡提升不减少时间
+    
+    // 积分系统配置
+    public static final int BASE_SCORE = 100; // 基础分数
+    public static final double COMBO_MULTIPLIER = 0.2; // 连击加成系数
+    public static final int LINES_PER_LEVEL = 10; // 每消除10行升一级
+    
+    /**
+     * 根据关卡计算下落速度
+     */
+    public static int calculateSpeed(int level) {
+        return (int) Math.max(100, BASE_SPEED - Math.pow(level, SPEED_FACTOR) * SPEED_MULTIPLIER);
+    }
+    
+    /**
+     * 根据消除行数和连击次数计算分数
+     */
+    public static int calculateScore(int lines, int combo, int level) {
+        if (lines <= 0) return 0;
+        
+        // 基础分数基于消除行数（单行=100，双行=200，三行=400，四行=800）
+        int baseScore = BASE_SCORE * (int)Math.pow(2, lines-1);
+        
+        // 连击加成
+        double comboMultiplier = 1.0 + (combo * COMBO_MULTIPLIER);
+        
+        // 关卡系数
+        double levelMultiplier = 1.0 + (level * 0.5);
+        
+        return (int)(baseScore * comboMultiplier * levelMultiplier);
+    }
+}
+
+/**
+ * 颜色工具类
+ */
+class ColorUtils {
+    /**
+     * 将HSV颜色转换为RGB颜色
+     * @param h 色相 (0-360)
+     * @param s 饱和度 (0.0-1.0)
+     * @param v 亮度 (0.0-1.0)
+     * @return RGB颜色
+     */
+    public static Color fromHSV(float h, float s, float v) {
+        // 确保h在0-360范围内
+        h = h % 360;
+        if (h < 0) h += 360;
+        
+        // 将H转换为对应的RGB分量
+        float c = v * s;
+        float x = c * (1 - Math.abs((h / 60) % 2 - 1));
+        float m = v - c;
+        
+        float r, g, b;
+        
+        if (h < 60) {
+            r = c; g = x; b = 0;
+        } else if (h < 120) {
+            r = x; g = c; b = 0;
+        } else if (h < 180) {
+            r = 0; g = c; b = x;
+        } else if (h < 240) {
+            r = 0; g = x; b = c;
+        } else if (h < 300) {
+            r = x; g = 0; b = c;
+        } else {
+            r = c; g = 0; b = x;
+        }
+        
+        return new Color(r + m, g + m, b + m);
+    }
+    
+    /**
+     * 生成7种互补色系的颜色，用于方块
+     * @return 7种颜色数组
+     */
+    public static Color[] generateTetrominoColors() {
+        Color[] colors = new Color[7];
+        float saturation = 0.8f;
+        float value = 0.7f;
+        
+        // 以约51度间隔生成7种不同色相的颜色
+        for (int i = 0; i < 7; i++) {
+            float hue = i * (360f / 7);
+            colors[i] = fromHSV(hue, saturation, value);
+        }
+        
+        return colors;
     }
 }
 
@@ -125,24 +208,24 @@ class StartPanel extends JPanel {
 
 // 游戏面板
 class GamePanel extends JPanel {
-    private static final int BOARD_WIDTH = 10;
-    private static final int BOARD_HEIGHT = 20;
-    private static final int CELL_SIZE = 30;
-    // 调整整体界面宽度，预留侧边区显示下一个方块和倒计时
-    private static final int SIDEBAR_WIDTH = 120; 
+    // 使用GameConfig中的常量
+    private static final int BOARD_WIDTH = GameConfig.BOARD_WIDTH;
+    private static final int BOARD_HEIGHT = GameConfig.BOARD_HEIGHT;
+    private static final int CELL_SIZE = GameConfig.CELL_SIZE;
+    private static final int SIDEBAR_WIDTH = GameConfig.SIDEBAR_WIDTH;
 
     private int[][] board;
     private Tetromino currentTetromino;
     private boolean isPaused;
     private int score;
     private int level;
+    private int linesCleared;  // 新增：已消除行数统计
+    private int comboCount;    // 新增：连击计数
     private javax.swing.Timer gameTimer;
-    // 新增倒计时字段
     private int timeLeft;
     private javax.swing.Timer countdownTimer;
     private JFrame frame;
     private JPanel mainPanel;
-    // 新增：下一个方块字段
     private Tetromino nextTetromino;
 
     public GamePanel(JFrame frame, JPanel mainPanel) {
@@ -153,6 +236,8 @@ class GamePanel extends JPanel {
         isPaused = false;
         score = 0;
         level = 1;
+        linesCleared = 0;
+        comboCount = 0;
 
         // 初始化棋盘
         for(int i = 0; i < BOARD_HEIGHT; i++) {
@@ -169,24 +254,20 @@ class GamePanel extends JPanel {
         });
         setFocusable(true);
 
-        // 设置游戏定时器，使用 javax.swing.Timer
-        gameTimer = new javax.swing.Timer(getSpeedForLevel(level), new ActionListener() {
+        // 设置游戏定时器
+        gameTimer = new javax.swing.Timer(GameConfig.calculateSpeed(level), new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 if (!isPaused) {
                     if (currentTetromino != null) {
-                        // 尝试向下移动
                         currentTetromino.move(0, 1);
                         if (currentTetromino.collidesWithBoard(board, BOARD_WIDTH, BOARD_HEIGHT)) {
                             currentTetromino.move(0, -1);
-                            // 锁定到棋盘
                             currentTetromino.lockToBoard(board);
-                            // 检查完整行
                             clearCompleteRows();
-                            // 生成新方块
                             generateNewTetromino();
                         }
+                        repaint();
                     } else {
-                        // 无当前方块，游戏结束
                         gameOver();
                     }
                 }
@@ -194,50 +275,52 @@ class GamePanel extends JPanel {
         });
     }
 
-    private int getSpeedForLevel(int level) {
-        // 根据关卡调整速度
-        return 1000 - (level - 1) * 200; // 简单：1000ms，中等：800ms，困难：600ms
-    }
-
     public void startGame() {
         score = 0;
         level = 1;
+        linesCleared = 0;
+        comboCount = 0;
+        
+        // 初始化棋盘
         for(int i = 0; i < BOARD_HEIGHT; i++) {
             for(int j = 0; j < BOARD_WIDTH; j++) {
                 board[i][j] = 0;
             }
         }
-        // 初始化倒计时，每关60秒
-        timeLeft = 60;
+        
+        // 初始化倒计时 - 修改为使用配置参数
+        timeLeft = GameConfig.BASE_COUNTDOWN;
         if (countdownTimer != null) {
             countdownTimer.stop();
         }
-        countdownTimer = new javax.swing.Timer(1000, new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                timeLeft--;
-                if (timeLeft <= 0) {
-                    gameOver();
+        
+        if (GameConfig.USE_COUNTDOWN_TIMER) {
+            countdownTimer = new javax.swing.Timer(1000, new ActionListener() {
+                public void actionPerformed(ActionEvent e) {
+                    timeLeft--;
+                    if (timeLeft <= 0) {
+                        gameOver();
+                    }
+                    repaint();
                 }
-                repaint();
-            }
-        });
-        countdownTimer.start();
-        // 新增：生成下一个方块
+            });
+            countdownTimer.start();
+        }
+        
+        // 生成方块
         nextTetromino = new Tetromino(new Random().nextInt(7)+1, 0, 0);
         generateNewTetromino();
-        gameTimer.setDelay(getSpeedForLevel(level));
+        gameTimer.setDelay(GameConfig.calculateSpeed(level));
         gameTimer.start();
-        // 添加对焦点的请求，确保键盘监听能生效
         requestFocusInWindow();
     }
-
-    // 修改生成方块方法：由 nextTetromino 转换为 currentTetromino，同时预生成下一个
+    
+    // 生成下一个方块
     private void generateNewTetromino() {
         if(nextTetromino == null) {
             nextTetromino = new Tetromino(new Random().nextInt(7)+1, 0, 0);
         }
         currentTetromino = nextTetromino;
-        // 将当前方块的位置调整为起点
         currentTetromino.move(BOARD_WIDTH/2 - 2 - currentTetromino.getX(), 0 - currentTetromino.getY());
         nextTetromino = new Tetromino(new Random().nextInt(7)+1, 0, 0);
         if (currentTetromino.collidesWithBoard(board, BOARD_WIDTH, BOARD_HEIGHT)) {
@@ -297,6 +380,8 @@ class GamePanel extends JPanel {
 
     private void clearCompleteRows() {
         ArrayList<Integer> rowsToClear = new ArrayList<>();
+        
+        // 检测完整行
         for(int i = 0; i < BOARD_HEIGHT; i++) {
             boolean isComplete = true;
             for(int j = 0; j < BOARD_WIDTH; j++) {
@@ -309,40 +394,76 @@ class GamePanel extends JPanel {
                 rowsToClear.add(i);
             }
         }
-
-        for(int row : rowsToClear) {
-            for(int j = 0; j < BOARD_WIDTH; j++) {
-                board[row][j] = 0;
-            }
-            for(int i = row; i > 0; i--) {
+        
+        // 如果有行可消除
+        if (!rowsToClear.isEmpty()) {
+            comboCount++; // 增加连击计数
+            int lines = rowsToClear.size();
+            linesCleared += lines;
+            
+            // 计算得分，使用新的积分系统
+            int earnedScore = GameConfig.calculateScore(lines, comboCount, level);
+            score += earnedScore;
+            
+            // 动画效果：闪烁消除行
+            flashRows(rowsToClear);
+            
+            // 移除完整行
+            for(int row : rowsToClear) {
                 for(int j = 0; j < BOARD_WIDTH; j++) {
-                    board[i][j] = board[i-1][j];
+                    board[row][j] = 0;
+                }
+                for(int i = row; i > 0; i--) {
+                    for(int j = 0; j < BOARD_WIDTH; j++) {
+                        board[i][j] = board[i-1][j];
+                    }
+                }
+                for(int j = 0; j < BOARD_WIDTH; j++) {
+                    board[0][j] = 0;
                 }
             }
-            for(int j = 0; j < BOARD_WIDTH; j++) {
-                board[0][j] = 0;
-            }
-            score += 100 * level; // 根据关卡加分
+            
+            checkLevelUp();
+        } else {
+            comboCount = 0; // 重置连击计数
         }
-        checkLevelUp();
+    }
+    
+    // 简单的行闪烁动画
+    private void flashRows(ArrayList<Integer> rows) {
+        // 实际项目中可以添加闪烁动画效果
+        repaint();
     }
 
     private void checkLevelUp() {
-        int newLevel = score / 1000 + 1; // 每1000分升一级
+        // 新的等级系统：每消除10行升一级
+        int newLevel = linesCleared / GameConfig.LINES_PER_LEVEL + 1;
         if (newLevel > level) {
             level = newLevel;
-            gameTimer.setDelay(getSpeedForLevel(level));
-            // 重置倒计时到60秒
-            timeLeft = 60;
+            gameTimer.setDelay(GameConfig.calculateSpeed(level));
+            
+            // 修改：只有在使用倒计时的情况下才重置倒计时
+            if (GameConfig.USE_COUNTDOWN_TIMER) {
+                // 重置倒计时，但每关减少的时间不能太多
+                timeLeft = Math.max(60, GameConfig.BASE_COUNTDOWN - (level-1) * GameConfig.COUNTDOWN_DECREASE);
+            }
         }
     }
-
+    
     private void gameOver() {
         gameTimer.stop();
-        if (countdownTimer != null) {
+        if (countdownTimer != null && GameConfig.USE_COUNTDOWN_TIMER) {
             countdownTimer.stop();
         }
-        JOptionPane.showMessageDialog(frame, "游戏结束！得分：" + score, "游戏结束", JOptionPane.INFORMATION_MESSAGE);
+        
+        // 添加关卡信息到游戏结束提示
+        JOptionPane.showMessageDialog(frame, 
+            "游戏结束！\n" +
+            "最终得分：" + score + "\n" +
+            "达到关卡：" + level + "\n" +
+            "消除行数：" + linesCleared, 
+            "游戏结束", JOptionPane.INFORMATION_MESSAGE);
+            
         saveHighScore();
         CardLayout cl = (CardLayout) mainPanel.getLayout();
         cl.show(mainPanel, "Start");
@@ -376,35 +497,50 @@ class GamePanel extends JPanel {
 
     public void setLevel(int level) {
         this.level = level;
-        gameTimer.setDelay(getSpeedForLevel(level));
+        gameTimer.setDelay(GameConfig.calculateSpeed(level));
     }
 
     public void togglePause() {
         isPaused = !isPaused;
         if (isPaused) {
             gameTimer.stop();
+            if (countdownTimer != null) {
+                countdownTimer.stop();
+            }
         } else {
             gameTimer.start();
+            if (countdownTimer != null) {
+                countdownTimer.start();
+            }
         }
     }
 
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        g.setColor(Color.black);
-        g.fillRect(0, 0, BOARD_WIDTH * CELL_SIZE, BOARD_HEIGHT * CELL_SIZE);
+        
+        // 启用抗锯齿
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        
+        // 绘制主游戏区域背景
+        g2d.setColor(new Color(20, 20, 30));
+        g2d.fillRect(0, 0, BOARD_WIDTH * CELL_SIZE, BOARD_HEIGHT * CELL_SIZE);
+        
+        // 绘制网格线
+        g2d.setColor(new Color(50, 50, 60));
+        for (int i = 0; i <= BOARD_WIDTH; i++) {
+            g2d.drawLine(i * CELL_SIZE, 0, i * CELL_SIZE, BOARD_HEIGHT * CELL_SIZE);
+        }
+        for (int i = 0; i <= BOARD_HEIGHT; i++) {
+            g2d.drawLine(0, i * CELL_SIZE, BOARD_WIDTH * CELL_SIZE, i * CELL_SIZE);
+        }
 
-        // 绘制棋盘
+        // 绘制棋盘上的方块
         for(int i = 0; i < BOARD_HEIGHT; i++) {
             for(int j = 0; j < BOARD_WIDTH; j++) {
                 if (board[i][j] != 0) {
-                    g.setColor(getColorForType(board[i][j]));
-                    g.fillRect(j * CELL_SIZE, i * CELL_SIZE, CELL_SIZE - 1, CELL_SIZE - 1);
-                    g.setColor(Color.darkGray);
-                    g.drawRect(j * CELL_SIZE, i * CELL_SIZE, CELL_SIZE - 1, CELL_SIZE - 1);
-                } else {
-                    g.setColor(Color.gray);
-                    g.drawRect(j * CELL_SIZE, i * CELL_SIZE, CELL_SIZE - 1, CELL_SIZE - 1);
+                    drawBlock(g2d, j, i, getColorForType(board[i][j]));
                 }
             }
         }
@@ -415,97 +551,135 @@ class GamePanel extends JPanel {
                 int x = p.x + currentTetromino.getX();
                 int y = p.y + currentTetromino.getY();
                 if (y >= 0 && y < BOARD_HEIGHT && x >= 0 && x < BOARD_WIDTH) {
-                    g.setColor(currentTetromino.getColor());
-                    g.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE - 1, CELL_SIZE - 1);
-                    g.setColor(Color.darkGray);
-                    g.drawRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE - 1, CELL_SIZE - 1);
+                    drawBlock(g2d, x, y, currentTetromino.getColor());
                 }
             }
         }
 
-        // 绘制得分和关卡
-        g.setColor(Color.white);
-        g.drawString("得分: " + score, 10, BOARD_HEIGHT * CELL_SIZE + 20);
-        g.drawString("关卡: " + level, 10, BOARD_HEIGHT * CELL_SIZE + 40);
-        g.drawString("倒计时: " + timeLeft + "s", 10, BOARD_HEIGHT * CELL_SIZE + 60);
-
-        // 绘制侧边栏（右侧）
+        // 绘制侧边栏
+        drawSidebar(g2d);
+    }
+    
+    // 获取方块类型对应的颜色
+    private Color getColorForType(int type) {
+        return Tetromino.getColorForType(type);
+    }
+    
+    // 绘制单个方块，带有3D效果
+    private void drawBlock(Graphics2D g, int x, int y, Color color) {
+        int blockSize = CELL_SIZE - 1;
+        int xPos = x * CELL_SIZE;
+        int yPos = y * CELL_SIZE;
+        
+        // 主体填充
+        g.setColor(color);
+        g.fillRect(xPos, yPos, blockSize, blockSize);
+        
+        // 亮边（左上）
+        g.setColor(color.brighter());
+        g.drawLine(xPos, yPos, xPos + blockSize - 1, yPos); // 上边
+        g.drawLine(xPos, yPos, xPos, yPos + blockSize - 1); // 左边
+        
+        // 暗边（右下）
+        g.setColor(color.darker());
+        g.drawLine(xPos + blockSize - 1, yPos, xPos + blockSize - 1, yPos + blockSize - 1); // 右边
+        g.drawLine(xPos, yPos + blockSize - 1, xPos + blockSize - 1, yPos + blockSize - 1); // 下边
+    }
+    
+    // 绘制侧边栏
+    private void drawSidebar(Graphics2D g) {
         int sidebarX = BOARD_WIDTH * CELL_SIZE + 10;
-        g.setColor(Color.darkGray);
+        
+        // 侧边栏背景
+        g.setColor(new Color(40, 40, 50));
         g.fillRect(BOARD_WIDTH * CELL_SIZE + 5, 0, SIDEBAR_WIDTH, BOARD_HEIGHT * CELL_SIZE);
+        
+        // 绘制游戏信息
+        g.setFont(new Font("Arial", Font.BOLD, 14));
         g.setColor(Color.white);
         g.drawString("得分: " + score, sidebarX, 30);
         g.drawString("关卡: " + level, sidebarX, 50);
-        g.drawString("倒计时: " + timeLeft + "s", sidebarX, 70);
-        // 绘制下一个方块预览标题
-        g.drawString("下一个:", sidebarX, 100);
-        // 在侧边栏绘制 nextTetromino 的块（缩放显示）
+        g.drawString("行数: " + linesCleared, sidebarX, 70);
+        g.drawString("连击: " + comboCount, sidebarX, 90);
+        
+        // 只在使用倒计时时显示倒计时
+        if (GameConfig.USE_COUNTDOWN_TIMER) {
+            g.drawString("倒计时: " + timeLeft + "s", sidebarX, 110);
+            // 下一个方块预览标题在110以后
+            g.drawString("下一个:", sidebarX, 140);
+        } else {
+            // 没有倒计时，下一个方块预览标题可以上移
+            g.drawString("下一个:", sidebarX, 120);
+        }
+        
+        // 绘制下一个方块预览
         if(nextTetromino != null) {
-            // 预览区域起始位置
             int previewX = sidebarX + 10;
-            int previewY = 120;
-            int previewCellSize = 20; // 缩小预览块尺寸
+            // 调整预览Y位置，根据是否显示倒计时
+            int previewY = GameConfig.USE_COUNTDOWN_TIMER ? 160 : 140;
+            
+            // 其余绘制代码不变...
+            int previewCellSize = 20;
+            g.setColor(new Color(30, 30, 40));
+            g.fillRect(previewX - 5, previewY - 5, 90, 90);
+            
             for(Point p : nextTetromino.getBlocks()){
                 int blockX = previewX + p.x * previewCellSize;
                 int blockY = previewY + p.y * previewCellSize;
-                g.setColor(nextTetromino.getColor());
-                g.fillRect(blockX, blockY, previewCellSize - 1, previewCellSize - 1);
-                g.setColor(Color.darkGray);
-                g.drawRect(blockX, blockY, previewCellSize - 1, previewCellSize - 1);
+                int blockSize = previewCellSize - 1;
+                Color color = nextTetromino.getColor();
+                
+                g.setColor(color);
+                g.fillRect(blockX, blockY, blockSize, blockSize);
+                g.setColor(color.brighter());
+                g.drawLine(blockX, blockY, blockX + blockSize - 1, blockY);
+                g.drawLine(blockX, blockY, blockX, blockY + blockSize - 1);
+                g.setColor(color.darker());
+                g.drawLine(blockX + blockSize - 1, blockY, blockX + blockSize - 1, blockY + blockSize - 1);
+                g.drawLine(blockX, blockY + blockSize - 1, blockX + blockSize - 1, blockY + blockSize - 1);
             }
         }
-    }
-
-    private Color getColorForType(int type) {
-        switch(type) {
-            case 1: return Color.cyan;
-            case 2: return Color.yellow;
-            // 替换 Color.purple 为自定义紫色
-            case 3: return new Color(128, 0, 128);
-            case 4: return Color.red;
-            case 5: return Color.orange;
-            case 6: return Color.blue;
-            case 7: return Color.green;
-            default: return Color.black;
-        }
+        
+        // 添加更多游戏信息
+        int infoY = GameConfig.USE_COUNTDOWN_TIMER ? 280 : 260;
+        g.setFont(new Font("Arial", Font.PLAIN, 12));
+        g.drawString("操作说明:", sidebarX, infoY);
+        g.drawString("↑: 旋转", sidebarX, infoY + 20);
+        g.drawString("←→: 移动", sidebarX, infoY + 40);
+        g.drawString("↓: 加速下落", sidebarX, infoY + 60);
+        g.drawString("空格: 直接落底", sidebarX, infoY + 80);
+        g.drawString("P: 暂停游戏", sidebarX, infoY + 100);
     }
 }
 
-// 方块类
+// 更新方块类，使用新的颜色系统
 class Tetromino {
-    // 添加常量，解决 BOARD_WIDTH 和 BOARD_HEIGHT 未定义的问题
-    private static final int BOARD_WIDTH = 10;
-    private static final int BOARD_HEIGHT = 20;
+    private static final int BOARD_WIDTH = GameConfig.BOARD_WIDTH;
+    private static final int BOARD_HEIGHT = GameConfig.BOARD_HEIGHT;
     
     private int type;
     private ArrayList<Point> blocks;
     private int x, y;
     private Color color;
-    // 新增旋转状态字段
     private int rotationState = 0;
+    
+    // 使用HSV颜色模型生成的颜色
+    private static final Color[] TYPE_COLORS = ColorUtils.generateTetrominoColors();
 
     public Tetromino(int type, int x, int y) {
         this.type = type;
         this.x = x;
         this.y = y;
-        this.color = getColorForType(type);
+        this.color = TYPE_COLORS[(type - 1) % TYPE_COLORS.length];
         this.blocks = getBlocksForType(type, rotationState);
     }
-
-    private Color getColorForType(int type) {
-        switch(type) {
-            case 1: return Color.cyan; // I
-            case 2: return Color.yellow; // O
-            // 替换 Color.purple 为自定义紫色
-            case 3: return new Color(128, 0, 128);
-            case 4: return Color.red; // S
-            case 5: return Color.orange; // Z
-            case 6: return Color.blue; // J
-            case 7: return Color.green; // L
-            default: return Color.black;
-        }
+    
+    // 获取特定类型方块的颜色
+    public static Color getColorForType(int type) {
+        return TYPE_COLORS[(type - 1) % TYPE_COLORS.length];
     }
 
+    // 根据方块类型和旋转状态获取方块形状
     private ArrayList<Point> getBlocksForType(int type, int rotation) {
         ArrayList<Point> blocks = new ArrayList<>();
         switch(type) {
@@ -551,7 +725,6 @@ class Tetromino {
                     blocks.add(new Point(2, 0));
                 }
                 break;
-            // 类似地定义其他类型
             case 4: // S
                 if (rotation % 2 == 0) {
                     blocks.add(new Point(1, 0));
@@ -628,43 +801,26 @@ class Tetromino {
         return blocks;
     }
 
-    // 修改 rotate 方法，更新 rotationState
-    public void rotate() {
-        int newRotation = (rotationState + 1) % 4;
-        ArrayList<Point> newBlocks = getBlocksForType(type, newRotation);
-        ArrayList<Point> oldBlocks = new ArrayList<>(blocks);
-        blocks = newBlocks;
-        // 仅检查边界（null 表示不检测已有棋盘的占用情况）
-        if (collidesWithBoard(null, BOARD_WIDTH, BOARD_HEIGHT)) {
-            blocks = oldBlocks; // 恢复原先状态，不更新 rotationState
-        } else {
-            rotationState = newRotation; // 更新旋转状态
-        }
-    }
-
-    // 修改 rotateBack 方法，更新 rotationState
-    public void rotateBack() {
-        rotationState = (rotationState - 1 + 4) % 4;
-        blocks = getBlocksForType(type, rotationState);
-    }
-
-    private int getRotationState() {
-        return rotationState;
-    }
-
     public void move(int dx, int dy) {
         x += dx;
         y += dy;
     }
 
-    public boolean collidesWithBoard(int[][] board, int width, int height) {
-        for(Point p : blocks) {
-            int bx = p.x + x;
-            int by = p.y + y;
-            if (bx < 0 || bx >= width || by < 0 || by >= height) {
-                return true;
-            }
-            if (board != null && by >= 0 && board[by][bx] != 0) {
+    public void rotate() {
+        rotationState = (rotationState + 1) % 4;
+        blocks = getBlocksForType(type, rotationState);
+    }
+
+    public void rotateBack() {
+        rotationState = (rotationState + 3) % 4;
+        blocks = getBlocksForType(type, rotationState);
+    }
+
+    public boolean collidesWithBoard(int[][] board, int boardWidth, int boardHeight) {
+        for (Point p : blocks) {
+            int newX = x + p.x;
+            int newY = y + p.y;
+            if (newX < 0 || newX >= boardWidth || newY >= boardHeight || (newY >= 0 && board[newY][newX] != 0)) {
                 return true;
             }
         }
@@ -672,31 +828,45 @@ class Tetromino {
     }
 
     public void lockToBoard(int[][] board) {
-        for(Point p : blocks) {
-            int bx = p.x + x;
-            int by = p.y + y;
-            if (by >= 0 && by < board.length && bx >= 0 && bx < board[0].length) {
-                board[by][bx] = type;
+        for (Point p : blocks) {
+            int newX = x + p.x;
+            int newY = y + p.y;
+            if (newY >= 0 && newY < board.length && newX >= 0 && newX < board[0].length) {
+                board[newY][newX] = type;
             }
         }
     }
 
-    public int getX() { return x; }
-    public int getY() { return y; }
-    public ArrayList<Point> getBlocks() { return blocks; }
-    public Color getColor() { return color; }
+    public ArrayList<Point> getBlocks() {
+        return blocks;
+    }
+
+    public int getX() {
+        return x;
+    }
+
+    public int getY() {
+        return y;
+    }
+
+    public Color getColor() {
+        return color;
+    }
 }
 
-// 高分面板
+// 高分面板更新，现在实际实现分数加载
 class HighScorePanel extends JPanel {
+    private JTextArea scoreArea;
+    
     public HighScorePanel(JFrame frame, JPanel mainPanel) {
         setLayout(new BorderLayout());
         JLabel title = new JLabel("高分榜", SwingConstants.CENTER);
         title.setFont(new Font("Arial", Font.BOLD, 24));
         add(title, BorderLayout.NORTH);
 
-        JTextArea scoreArea = new JTextArea(10, 20);
+        scoreArea = new JTextArea(10, 20);
         scoreArea.setEditable(false);
+        scoreArea.setFont(new Font("Consolas", Font.PLAIN, 14));
         add(new JScrollPane(scoreArea), BorderLayout.CENTER);
 
         JButton backButton = new JButton("返回");
@@ -710,7 +880,29 @@ class HighScorePanel extends JPanel {
     }
 
     public void updateScores() {
-        // 实现高分加载和显示
+        try {
+            File file = new File("highscores.txt");
+            StringBuilder sb = new StringBuilder();
+            sb.append("排名\t分数\n");
+            sb.append("------------------\n");
+            
+            if (file.exists()) {
+                Scanner scanner = new Scanner(file);
+                int rank = 1;
+                while (scanner.hasNextInt() && rank <= 10) {
+                    int score = scanner.nextInt();
+                    sb.append(rank).append(".\t").append(score).append("\n");
+                    rank++;
+                }
+                scanner.close();
+            } else {
+                sb.append("暂无分数记录\n");
+            }
+            
+            scoreArea.setText(sb.toString());
+        } catch (IOException e) {
+            scoreArea.setText("加载分数时出错: " + e.getMessage());
+        }
     }
 }
 
@@ -721,14 +913,12 @@ class MenuBar extends JMenuBar {
         JMenuItem startItem = new JMenuItem("开始新游戏");
         startItem.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                CardLayout cl = (CardLayout) mainPanel.getLayout();
-                cl.show(mainPanel, "Game");
                 gamePanel.startGame();
             }
         });
         gameMenu.add(startItem);
 
-        JMenuItem pauseItem = new JMenuItem("暂停");
+        JMenuItem pauseItem = new JMenuItem("暂停/继续");
         pauseItem.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 gamePanel.togglePause();
@@ -744,34 +934,11 @@ class MenuBar extends JMenuBar {
         });
         gameMenu.add(exitItem);
 
-        JMenu levelsMenu = new JMenu("关卡");
-        JMenuItem easyItem = new JMenuItem("简单");
-        easyItem.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                gamePanel.setLevel(1);
-            }
-        });
-        levelsMenu.add(easyItem);
+        add(gameMenu);
 
-        JMenuItem mediumItem = new JMenuItem("中等");
-        mediumItem.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                gamePanel.setLevel(2);
-            }
-        });
-        levelsMenu.add(mediumItem);
-
-        JMenuItem hardItem = new JMenuItem("困难");
-        hardItem.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                gamePanel.setLevel(3);
-            }
-        });
-        levelsMenu.add(hardItem);
-
-        JMenu highScoresMenu = new JMenu("高分");
-        JMenuItem viewScoresItem = new JMenuItem("查看高分");
-        viewScoresItem.addActionListener(new ActionListener() {
+        JMenu viewMenu = new JMenu("查看");
+        JMenuItem highScoreItem = new JMenuItem("高分榜");
+        highScoreItem.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 CardLayout cl = (CardLayout) mainPanel.getLayout();
                 cl.show(mainPanel, "HighScore");
@@ -779,10 +946,8 @@ class MenuBar extends JMenuBar {
                 highScorePanel.updateScores();
             }
         });
-        highScoresMenu.add(viewScoresItem);
+        viewMenu.add(highScoreItem);
 
-        add(gameMenu);
-        add(levelsMenu);
-        add(highScoresMenu);
+        add(viewMenu);
     }
 }
